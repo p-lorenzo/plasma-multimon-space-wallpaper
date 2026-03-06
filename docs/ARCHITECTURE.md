@@ -5,7 +5,7 @@
 1. `contents/ui/main.qml` (Plasma wallpaper frontend) triggers refresh on startup and by timer.
 2. The QML layer calls `scripts/multimon_wallpaper.py refresh`.
 3. The Python helper:
-   - Fetches NASA APOD metadata/image (with cache reuse).
+   - Fetches NASA images (APOD or EPIC) with cache reuse and minimum-size filtering.
    - Detects monitors from `xrandr`.
    - Builds one virtual desktop canvas.
    - Resizes/crops source image to the canvas.
@@ -37,3 +37,9 @@ Plasma wallpaper plugins run once per screen containment. This prototype uses sh
 - Mixed DPI / fractional scaling aware monitor coordinates.
 - Subject-aware crop using saliency/face/semantic heuristics.
 - Additional providers (NASA EPIC, ESA, Unsplash, custom feeds).
+
+
+## Provider strategy
+
+- APOD: scans backward across recent days (configurable lookback) until an image matches minimum width/height.
+- EPIC: uses NASA EPIC natural-color image list as an alternative when APOD entries are too small or non-image.

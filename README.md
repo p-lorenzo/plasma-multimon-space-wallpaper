@@ -18,9 +18,11 @@ This project is scaffolded as a **Plasma 6 wallpaper package** (not a generic pl
 
 ## Features (prototype)
 
-- NASA APOD high-resolution image fetch (`hdurl` preferred).
+- NASA image providers: APOD (`hdurl` preferred) and EPIC.
 - Local metadata/state caching.
 - Download de-duplication (unless `--force`).
+- Minimum source image size filter (default 3840x2160).
+- APOD lookback scan to skip small/non-image entries.
 - Monitor layout detection via `xrandr`.
 - Virtual desktop canvas composition.
 - Crop modes:
@@ -133,7 +135,7 @@ Also make sure you run `kpackagetool6` from the plugin root (the directory conta
 
 Options provided:
 
-- NASA endpoint
+- NASA provider (`apod` or `epic`)
 - NASA API key
 - Refresh interval (hours)
 - Cache directory
@@ -141,12 +143,23 @@ Options provided:
 - Monitor mode (`span`, `per_monitor` placeholder)
 - Debug logging toggle
 
+
+## Provider notes
+
+### APOD
+- APOD metadata does **not** expose pixel dimensions, so this project now scans backwards up to `--apod-lookback-days` and only accepts images above your configured minimum size.
+- If a day is a video/non-image entry, it is skipped automatically.
+
+### EPIC
+- EPIC gives Earth imagery from DSCOVR and is usually stable in resolution.
+- Use `provider=epic` when APOD keeps returning assets that are too small for dual-monitor wallpapers.
+
 ## Testing commands
 
 ```bash
-python3 scripts/multimon_wallpaper.py refresh --debug
-python3 scripts/multimon_wallpaper.py refresh --crop-mode contain --force
-python3 scripts/multimon_wallpaper.py refresh --crop-mode smart_center
+python3 scripts/multimon_wallpaper.py refresh --provider apod --min-width 3840 --min-height 2160 --debug
+python3 scripts/multimon_wallpaper.py refresh --provider apod --apod-lookback-days 60 --crop-mode contain --force
+python3 scripts/multimon_wallpaper.py refresh --provider epic --min-width 3000 --min-height 2000 --crop-mode smart_center
 ```
 
 ## Packaging

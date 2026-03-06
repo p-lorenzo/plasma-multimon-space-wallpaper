@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import logging
 import os
@@ -88,53 +89,165 @@ def parse_xrandr() -> List[Monitor]:
     return monitors
 
 
-def fetch_nasa_image(nasa_endpoint: str, api_key: str, cache_dir: pathlib.Path, force: bool = False) -> Tuple[pathlib.Path, dict]:
+def http_get_json(url: str, timeout: int = 30):
+    with urllib.request.urlopen(url, timeout=timeout) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def download_binary(url: str, timeout: int = 60) -> bytes:
+    with urllib.request.urlopen(url, timeout=timeout) as response:
+        return response.read()
+
+
+def image_meets_size(path: pathlib.Path, min_width: int, min_height: int) -> bool:
+    with Image.open(path) as img:
+        w, h = img.size
+    return w >= min_width and h >= min_height
+
+
+def is_cached_state_usable(state: dict, provider: str, min_width: int, min_height: int) -> bool:
+    image_path = pathlib.Path(state.get("image_path", ""))
+    if state.get("provider") != provider or not image_path.exists():
+        return False
+    try:
+        return image_meets_size(image_path, min_width, min_height)
+    except Exception:
+        return False
+
+
+def fetch_apod_image(
+    api_key: str,
+    cache_dir: pathlib.Path,
+    min_width: int,
+    min_height: int,
+    lookback_days: int,
+) -> Tuple[pathlib.Path, dict]:
+    images_dir = cache_dir / "images"
+    images_dir.mkdir(parents=True, exist_ok=True)
+
+    today = dt.date.today()
+    errors: List[str] = []
+
+    for day_offset in range(lookback_days + 1):
+        date_str = (today - dt.timedelta(days=day_offset)).isoformat()
+        query = urllib.parse.urlencode({"api_key": api_key, "date": date_str, "thumbs": "false"})
+        url = f"https://api.nasa.gov/planetary/apod?{query}"
+        logging.debug("Fetching APOD metadata for %s", date_str)
+
+        try:
+            metadata = http_get_json(url)
+        except Exception as exc:
+            errors.append(f"{date_str}: metadata error {exc}")
+            continue
+
+        if metadata.get("media_type") != "image":
+            errors.append(f"{date_str}: not an image entry")
+            continue
+
+        image_url = metadata.get("hdurl") or metadata.get("url")
+        if not image_url:
+            errors.append(f"{date_str}: no image URL")
+            continue
+
+        ext = pathlib.Path(urllib.parse.urlparse(image_url).path).suffix.lower() or ".jpg"
+        image_id = re.sub(r"[^a-zA-Z0-9._-]+", "_", metadata.get("date") or date_str)
+        image_path = images_dir / f"apod_{image_id}{ext}"
+
+        try:
+            if not image_path.exists():
+                image_path.write_bytes(download_binary(image_url, timeout=60))
+            if image_meets_size(image_path, min_width, min_height):
+                return image_path, metadata
+            errors.append(f"{date_str}: too small ({image_path})")
+        except Exception as exc:
+            errors.append(f"{date_str}: download/size error {exc}")
+
+    raise RuntimeError(
+        "APOD did not return a suitable image above minimum dimensions "
+        f"{min_width}x{min_height} in the last {lookback_days} days. Last errors: {errors[:4]}"
+    )
+
+
+def fetch_epic_image(api_key: str, cache_dir: pathlib.Path, min_width: int, min_height: int) -> Tuple[pathlib.Path, dict]:
+    images_dir = cache_dir / "images"
+    images_dir.mkdir(parents=True, exist_ok=True)
+
+    list_url = f"https://api.nasa.gov/EPIC/api/natural/images?{urllib.parse.urlencode({'api_key': api_key})}"
+    try:
+        items = http_get_json(list_url)
+    except Exception as exc:
+        raise RuntimeError(f"EPIC API unavailable: {exc}") from exc
+
+    if not isinstance(items, list) or not items:
+        raise RuntimeError("EPIC API returned no images")
+
+    for item in items:
+        image_name = item.get("image")
+        date_str = item.get("date", "")
+        if not image_name or not date_str:
+            continue
+
+        day = date_str.split(" ")[0]
+        try:
+            y, m, d = day.split("-")
+        except ValueError:
+            continue
+
+        image_url = (
+            f"https://api.nasa.gov/EPIC/archive/natural/{y}/{m}/{d}/png/{image_name}.png?"
+            f"{urllib.parse.urlencode({'api_key': api_key})}"
+        )
+        image_id = re.sub(r"[^a-zA-Z0-9._-]+", "_", f"epic_{day}_{image_name}")
+        image_path = images_dir / f"{image_id}.png"
+
+        try:
+            if not image_path.exists():
+                image_path.write_bytes(download_binary(image_url, timeout=60))
+            if image_meets_size(image_path, min_width, min_height):
+                return image_path, {"provider": "epic", "source": item, "image_url": image_url}
+        except Exception:
+            continue
+
+    raise RuntimeError(
+        "EPIC did not return a suitable image above minimum dimensions "
+        f"{min_width}x{min_height}."
+    )
+
+
+def fetch_nasa_image(
+    provider: str,
+    api_key: str,
+    cache_dir: pathlib.Path,
+    min_width: int,
+    min_height: int,
+    lookback_days: int,
+    force: bool = False,
+) -> Tuple[pathlib.Path, dict]:
     state_path = cache_dir / "state" / "last_fetch.json"
     state = load_json(state_path, default={})
 
-    query = urllib.parse.urlencode({"api_key": api_key})
-    url = f"{nasa_endpoint}?{query}"
-    logging.debug("Fetching NASA metadata: %s", url)
+    if not force and is_cached_state_usable(state, provider, min_width, min_height):
+        logging.info("Reusing cached %s image: %s", provider, state["image_path"])
+        return pathlib.Path(state["image_path"]), state.get("metadata", {})
 
-    try:
-        with urllib.request.urlopen(url, timeout=30) as response:
-            metadata = json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-        raise RuntimeError(f"NASA API unavailable: {exc}") from exc
-
-    image_url = metadata.get("hdurl") or metadata.get("url")
-    if not image_url:
-        raise RuntimeError("NASA response did not include an image URL")
-
-    ext = pathlib.Path(urllib.parse.urlparse(image_url).path).suffix.lower() or ".jpg"
-    image_id = metadata.get("date") or metadata.get("title") or str(int(time.time()))
-    image_id = re.sub(r"[^a-zA-Z0-9._-]+", "_", image_id)
-
-    images_dir = cache_dir / "images"
-    images_dir.mkdir(parents=True, exist_ok=True)
-    image_path = images_dir / f"{image_id}{ext}"
-
-    if not force and state.get("image_url") == image_url and pathlib.Path(state.get("image_path", "")).exists():
-        logging.info("Reusing cached NASA image: %s", state["image_path"])
-        return pathlib.Path(state["image_path"]), metadata
-
-    if not image_path.exists() or force:
-        try:
-            with urllib.request.urlopen(image_url, timeout=60) as response:
-                image_path.write_bytes(response.read())
-        except (urllib.error.URLError, TimeoutError) as exc:
-            raise RuntimeError(f"Failed to download NASA image: {exc}") from exc
+    if provider == "apod":
+        image_path, metadata = fetch_apod_image(api_key, cache_dir, min_width, min_height, lookback_days)
+    elif provider == "epic":
+        image_path, metadata = fetch_epic_image(api_key, cache_dir, min_width, min_height)
+    else:
+        raise RuntimeError(f"Unsupported provider: {provider}")
 
     save_json(
         state_path,
         {
-            "image_url": image_url,
+            "provider": provider,
             "image_path": str(image_path),
             "fetched_at": int(time.time()),
+            "min_width": min_width,
+            "min_height": min_height,
             "metadata": metadata,
         },
     )
-
     return image_path, metadata
 
 
@@ -156,15 +269,21 @@ def fit_contain(src_w: int, src_h: int, dst_w: int, dst_h: int) -> Tuple[int, in
     return int(src_w * ratio), int(src_h * ratio)
 
 
-def render_virtual_canvas(image_path: pathlib.Path, canvas_size: Tuple[int, int], crop_mode: str) -> Image.Image:
+def render_virtual_canvas(
+    image_path: pathlib.Path,
+    canvas_size: Tuple[int, int],
+    crop_mode: str,
+    min_width: int,
+    min_height: int,
+) -> Image.Image:
     canvas_w, canvas_h = canvas_size
     if canvas_w <= 0 or canvas_h <= 0:
         raise RuntimeError("No monitors detected")
 
     src = Image.open(image_path).convert("RGB")
     src_w, src_h = src.size
-    if src_w < 1000 or src_h < 1000:
-        raise RuntimeError("NASA image too small for wallpaper use")
+    if src_w < min_width or src_h < min_height:
+        raise RuntimeError(f"NASA image too small for wallpaper use ({src_w}x{src_h}); minimum {min_width}x{min_height}")
 
     if crop_mode == "contain":
         scaled_w, scaled_h = fit_contain(src_w, src_h, canvas_w, canvas_h)
@@ -193,6 +312,8 @@ def generate_wallpapers(
     cache_dir: pathlib.Path,
     crop_mode: str,
     monitor_mode: str,
+    min_width: int,
+    min_height: int,
 ) -> Dict[str, pathlib.Path]:
     if not monitors:
         raise RuntimeError("No monitors detected")
@@ -207,7 +328,7 @@ def generate_wallpapers(
     if monitor_mode != "span":
         logging.info("Per-monitor mode is not implemented yet; falling back to span")
 
-    virtual = render_virtual_canvas(image_path, (canvas_w, canvas_h), crop_mode)
+    virtual = render_virtual_canvas(image_path, (canvas_w, canvas_h), crop_mode, min_width, min_height)
     generated_dir = cache_dir / "generated"
     generated_dir.mkdir(parents=True, exist_ok=True)
 
@@ -272,9 +393,12 @@ def refresh(args: argparse.Namespace) -> pathlib.Path:
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     image_path, metadata = fetch_nasa_image(
-        nasa_endpoint=args.nasa_endpoint,
+        provider=args.provider,
         api_key=args.api_key,
         cache_dir=cache_dir,
+        min_width=args.min_width,
+        min_height=args.min_height,
+        lookback_days=args.apod_lookback_days,
         force=args.force,
     )
     save_json(cache_dir / "state" / "last_metadata.json", metadata)
@@ -289,6 +413,8 @@ def refresh(args: argparse.Namespace) -> pathlib.Path:
         cache_dir=cache_dir,
         crop_mode=args.crop_mode,
         monitor_mode=args.monitor_mode,
+        min_width=args.min_width,
+        min_height=args.min_height,
     )
 
     if args.apply:
@@ -304,11 +430,14 @@ def refresh(args: argparse.Namespace) -> pathlib.Path:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("command", choices=["refresh"], help="operation to run")
-    p.add_argument("--nasa-endpoint", default="https://api.nasa.gov/planetary/apod")
+    p.add_argument("--provider", choices=["apod", "epic"], default="apod")
     p.add_argument("--api-key", default="DEMO_KEY")
     p.add_argument("--cache-dir", default="")
     p.add_argument("--crop-mode", choices=["cover", "contain", "smart_center"], default="cover")
     p.add_argument("--monitor-mode", choices=["span", "per_monitor"], default="span")
+    p.add_argument("--min-width", type=int, default=3840)
+    p.add_argument("--min-height", type=int, default=2160)
+    p.add_argument("--apod-lookback-days", type=int, default=30)
     p.add_argument("--screen-x", type=int, default=0)
     p.add_argument("--screen-y", type=int, default=0)
     p.add_argument("--screen-width", type=int, default=0)
