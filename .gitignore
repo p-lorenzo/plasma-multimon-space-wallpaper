@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Build / packaging
+*.zip
+*.tar.gz
+
+# Runtime cache (default local dev path)
+.cache/
+state/
+
+# Editors
+.idea/
+.vscode/
+*~
+.DS_Store
