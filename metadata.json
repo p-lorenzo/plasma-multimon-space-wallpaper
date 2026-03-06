@@ -1,0 +1,21 @@
+{
+  "KPlugin": {
+    "Authors": [
+      {
+        "Email": "opensource@example.invalid",
+        "Name": "plasma-multimon-space-wallpaper contributors"
+      }
+    ],
+    "Category": "Wallpaper",
+    "Description": "Fetches NASA imagery and generates multi-monitor wallpapers",
+    "Icon": "preferences-desktop-wallpaper",
+    "Id": "com.github.plasma.multimon.space.wallpaper",
+    "License": "MIT",
+    "Name": "Multi-monitor Space Wallpaper",
+    "Version": "0.1.0",
+    "Website": "https://github.com/example/plasma-multimon-space-wallpaper"
+  },
+  "KPackageStructure": "Plasma/Wallpaper",
+  "X-Plasma-API": "declarativeappletscript",
+  "X-Plasma-MainScript": "ui/main.qml"
+}
