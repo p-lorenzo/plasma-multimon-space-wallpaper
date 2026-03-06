@@ -5,13 +5,10 @@ import QtQuick.Layouts
 QQC2.ScrollView {
     id: root
 
-    property alias cfg_nasaProvider: nasaProvider.currentValue
+    property alias cfg_nasaEndpoint: nasaEndpoint.text
     property alias cfg_nasaApiKey: nasaApiKey.text
     property alias cfg_refreshIntervalHours: refreshHours.value
     property alias cfg_cacheDir: cacheDir.text
-    property alias cfg_minImageWidth: minImageWidth.value
-    property alias cfg_minImageHeight: minImageHeight.value
-    property alias cfg_apodLookbackDays: apodLookbackDays.value
     property alias cfg_cropMode: cropMode.currentValue
     property alias cfg_monitorMode: monitorMode.currentValue
     property alias cfg_debugLogging: debugLogging.checked
@@ -20,26 +17,27 @@ QQC2.ScrollView {
         width: root.availableWidth
         spacing: 12
 
-        QQC2.Label { text: "NASA provider" }
-        QQC2.ComboBox {
-            id: nasaProvider
+        QQC2.Label {
+            text: "NASA endpoint"
+        }
+        QQC2.TextField {
+            id: nasaEndpoint
             Layout.fillWidth: true
-            textRole: "text"
-            valueRole: "value"
-            model: [
-                {"text": "APOD (Astronomy Picture of the Day)", "value": "apod"},
-                {"text": "EPIC (Earth Polychromatic Imaging Camera)", "value": "epic"}
-            ]
+            placeholderText: "https://api.nasa.gov/planetary/apod"
         }
 
-        QQC2.Label { text: "NASA API key" }
+        QQC2.Label {
+            text: "NASA API key"
+        }
         QQC2.TextField {
             id: nasaApiKey
             Layout.fillWidth: true
             placeholderText: "DEMO_KEY"
         }
 
-        QQC2.Label { text: "Refresh interval (hours)" }
+        QQC2.Label {
+            text: "Refresh interval (hours)"
+        }
         QQC2.SpinBox {
             id: refreshHours
             from: 1
@@ -47,40 +45,18 @@ QQC2.ScrollView {
             editable: true
         }
 
-        QQC2.Label { text: "Cache directory (empty = default)" }
+        QQC2.Label {
+            text: "Cache directory (empty = default)"
+        }
         QQC2.TextField {
             id: cacheDir
             Layout.fillWidth: true
             placeholderText: "~/.cache/plasma-multimon-space-wallpaper"
         }
 
-        QQC2.Label { text: "Minimum source width" }
-        QQC2.SpinBox {
-            id: minImageWidth
-            from: 1024
-            to: 16384
-            stepSize: 256
-            editable: true
+        QQC2.Label {
+            text: "Crop mode"
         }
-
-        QQC2.Label { text: "Minimum source height" }
-        QQC2.SpinBox {
-            id: minImageHeight
-            from: 768
-            to: 16384
-            stepSize: 256
-            editable: true
-        }
-
-        QQC2.Label { text: "APOD lookback days (for size filtering)" }
-        QQC2.SpinBox {
-            id: apodLookbackDays
-            from: 1
-            to: 365
-            editable: true
-        }
-
-        QQC2.Label { text: "Crop mode" }
         QQC2.ComboBox {
             id: cropMode
             Layout.fillWidth: true
@@ -93,7 +69,9 @@ QQC2.ScrollView {
             ]
         }
 
-        QQC2.Label { text: "Monitor mode" }
+        QQC2.Label {
+            text: "Monitor mode"
+        }
         QQC2.ComboBox {
             id: monitorMode
             Layout.fillWidth: true
@@ -108,13 +86,6 @@ QQC2.ScrollView {
         QQC2.CheckBox {
             id: debugLogging
             text: "Enable debug logging"
-        }
-
-        QQC2.Label {
-            Layout.fillWidth: true
-            wrapMode: Text.WordWrap
-            text: "APOD does not expose image dimensions in metadata; this plugin may scan back a few days until it finds an image meeting your minimum size."
-            opacity: 0.8
         }
 
         QQC2.Label {
