@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+      http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <group name="General">
+    <entry name="nasaEndpoint" type="String">
+      <default>https://api.nasa.gov/planetary/apod</default>
+    </entry>
+    <entry name="nasaApiKey" type="String">
+      <default>DEMO_KEY</default>
+    </entry>
+    <entry name="refreshIntervalHours" type="Int">
+      <default>6</default>
+    </entry>
+    <entry name="cacheDir" type="String">
+      <default></default>
+    </entry>
+    <entry name="cropMode" type="String">
+      <default>cover</default>
+    </entry>
+    <entry name="monitorMode" type="String">
+      <default>span</default>
+    </entry>
+    <entry name="debugLogging" type="Bool">
+      <default>false</default>
+    </entry>
+  </group>
+</kcfg>
