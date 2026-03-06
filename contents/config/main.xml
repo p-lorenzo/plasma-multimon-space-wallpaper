@@ -4,11 +4,8 @@
       xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
       http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
   <group name="General">
-    <entry name="nasaProvider" type="String">
-      <default>library</default>
-    </entry>
-    <entry name="nasaLibraryQuery" type="String">
-      <default>jwst nebula galaxy hubble</default>
+    <entry name="nasaEndpoint" type="String">
+      <default>https://api.nasa.gov/planetary/apod</default>
     </entry>
     <entry name="nasaApiKey" type="String">
       <default>DEMO_KEY</default>
@@ -18,15 +15,6 @@
     </entry>
     <entry name="cacheDir" type="String">
       <default></default>
-    </entry>
-    <entry name="minImageWidth" type="Int">
-      <default>3840</default>
-    </entry>
-    <entry name="minImageHeight" type="Int">
-      <default>2160</default>
-    </entry>
-    <entry name="apodLookbackDays" type="Int">
-      <default>30</default>
     </entry>
     <entry name="cropMode" type="String">
       <default>cover</default>

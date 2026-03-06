@@ -7,14 +7,10 @@ WallpaperItem {
     id: wallpaper
 
     property string cacheDir: wallpaper.configuration.cacheDir || ""
-    property string nasaProvider: wallpaper.configuration.nasaProvider || "library"
-    property string nasaLibraryQuery: wallpaper.configuration.nasaLibraryQuery || "jwst nebula galaxy hubble"
+    property string nasaEndpoint: wallpaper.configuration.nasaEndpoint || "https://api.nasa.gov/planetary/apod"
     property string nasaApiKey: wallpaper.configuration.nasaApiKey || "DEMO_KEY"
     property string cropMode: wallpaper.configuration.cropMode || "cover"
     property string monitorMode: wallpaper.configuration.monitorMode || "span"
-    property int minImageWidth: Math.max(1024, wallpaper.configuration.minImageWidth || 3840)
-    property int minImageHeight: Math.max(768, wallpaper.configuration.minImageHeight || 2160)
-    property int apodLookbackDays: Math.max(1, wallpaper.configuration.apodLookbackDays || 30)
     property int refreshIntervalHours: Math.max(1, wallpaper.configuration.refreshIntervalHours || 6)
     property bool debugLogging: wallpaper.configuration.debugLogging || false
     property string lastImagePath: ""
@@ -27,15 +23,11 @@ WallpaperItem {
         const args = [
             helperScriptPath(),
             "refresh",
-            "--provider", nasaProvider,
-            "--library-query", nasaLibraryQuery,
+            "--nasa-endpoint", nasaEndpoint,
             "--api-key", nasaApiKey,
             "--crop-mode", cropMode,
             "--monitor-mode", monitorMode,
             "--cache-dir", cacheDir,
-            "--min-width", minImageWidth,
-            "--min-height", minImageHeight,
-            "--apod-lookback-days", apodLookbackDays,
             "--screen-x", Math.round(wallpaper.screenGeometry.x),
             "--screen-y", Math.round(wallpaper.screenGeometry.y),
             "--screen-width", Math.round(wallpaper.screenGeometry.width),

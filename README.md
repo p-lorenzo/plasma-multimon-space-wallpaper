@@ -18,11 +18,9 @@ This project is scaffolded as a **Plasma 6 wallpaper package** (not a generic pl
 
 ## Features (prototype)
 
-- NASA image providers: NASA Image Library (recommended), APOD (`hdurl` preferred), and EPIC.
+- NASA APOD high-resolution image fetch (`hdurl` preferred).
 - Local metadata/state caching.
 - Download de-duplication (unless `--force`).
-- Minimum source image size filter (default 3840x2160).
-- APOD lookback scan to skip small/non-image entries.
 - Monitor layout detection via `xrandr`.
 - Virtual desktop canvas composition.
 - Crop modes:
@@ -95,19 +93,19 @@ Cache defaults to:
 ### Option A: kpackagetool6
 
 ```bash
-kpackagetool6 --type Plasma/Wallpaper --install .
+kpackagetool6 --type Wallpaper --install .
 ```
 
 Update:
 
 ```bash
-kpackagetool6 --type Plasma/Wallpaper --upgrade .
+kpackagetool6 --type Wallpaper --upgrade .
 ```
 
 Remove:
 
 ```bash
-kpackagetool6 --type Plasma/Wallpaper --remove com.github.plasma.multimon.space.wallpaper
+kpackagetool6 --type Wallpaper --remove com.github.plasma.multimon.space.wallpaper
 ```
 
 ### Option B: manual local package path
@@ -119,24 +117,11 @@ rsync -a --delete ./ ~/.local/share/plasma/wallpapers/com.github.plasma.multimon
 
 Then select **Multi-monitor Space Wallpaper** in desktop wallpaper settings.
 
-
-## Troubleshooting install
-
-If you get errors like:
-
-- `Package type "Wallpaper" not found`
-- `Could not load package structure Wallpaper`
-
-it means the package type was passed incorrectly. Use `Plasma/Wallpaper` (with the `Plasma/` prefix).
-
-Also make sure you run `kpackagetool6` from the plugin root (the directory containing `metadata.json` and `contents/`).
-
 ## Configuration UI
 
 Options provided:
 
-- NASA provider (`library`, `apod`, or `epic`)
-- NASA Image Library query
+- NASA endpoint
 - NASA API key
 - Refresh interval (hours)
 - Cache directory
@@ -144,27 +129,12 @@ Options provided:
 - Monitor mode (`span`, `per_monitor` placeholder)
 - Debug logging toggle
 
-
-## Provider notes
-
-### NASA Image Library (recommended)
-- Uses `images-api.nasa.gov` search + asset endpoints and picks the first candidate above your minimum size.
-- Better for dual-monitor needs because there are many high-resolution assets.
-
-### APOD
-- APOD metadata does **not** expose pixel dimensions, so this project now scans backwards up to `--apod-lookback-days` and only accepts images above your configured minimum size.
-- If a day is a video/non-image entry, it is skipped automatically.
-
-### EPIC
-- EPIC gives Earth imagery from DSCOVR and is usually stable in resolution.
-- Use `provider=epic` when APOD keeps returning assets that are too small for dual-monitor wallpapers.
-
 ## Testing commands
 
 ```bash
-python3 scripts/multimon_wallpaper.py refresh --provider library --library-query "jwst nebula" --min-width 3840 --min-height 2160 --debug
-python3 scripts/multimon_wallpaper.py refresh --provider apod --apod-lookback-days 60 --crop-mode contain --force
-python3 scripts/multimon_wallpaper.py refresh --provider epic --min-width 3000 --min-height 2000 --crop-mode smart_center
+python3 scripts/multimon_wallpaper.py refresh --debug
+python3 scripts/multimon_wallpaper.py refresh --crop-mode contain --force
+python3 scripts/multimon_wallpaper.py refresh --crop-mode smart_center
 ```
 
 ## Packaging
@@ -178,7 +148,7 @@ zip -r plasma-multimon-space-wallpaper.zip metadata.json contents scripts docs L
 Install from archive:
 
 ```bash
-kpackagetool6 --type Plasma/Wallpaper --install plasma-multimon-space-wallpaper.zip
+kpackagetool6 --type Wallpaper --install plasma-multimon-space-wallpaper.zip
 ```
 
 ## Error handling behavior
@@ -195,7 +165,7 @@ Graceful handling for:
 
 - `per_monitor` mode is currently a placeholder that falls back to spanning.
 - Mixed DPI/fractional scaling needs explicit geometry normalization.
-- More providers beyond NASA are planned.
+- More providers beyond APOD are planned.
 - Better semantic crop is planned.
 
 See `docs/ARCHITECTURE.md` TODO section.
